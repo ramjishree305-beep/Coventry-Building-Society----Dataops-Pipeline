@@ -1,0 +1,84 @@
+name: DataOps Pipeline CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit tests
+        run: pytest -v
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Format check
+        run: terraform -chdir=infra fmt -check
+      - name: Validate
+        run: terraform -chdir=infra init -backend=false && terraform -chdir=infra validate
+
+  run-pipeline:
+    needs: [test, terraform]
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'ci-throwaway-password' }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: analytics
+          POSTGRES_USER: pipeline
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD || 'ci-throwaway-password' }}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pipeline"
+          --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t dataops-pipeline:${{ github.sha }} .
+      - name: Prepare output folders
+        run: mkdir -p logs && chmod -R 777 data logs
+      - name: Run pipeline (fails the build on a non-zero exit code)
+        run: |
+          docker run --rm --network host \
+            -e DB_HOST=localhost -e DB_PASSWORD \
+            -v "$PWD/data:/app/data" -v "$PWD/logs:/app/logs" \
+            dataops-pipeline:${{ github.sha }}
+      - name: Check warehouse row counts
+        env:
+          PGPASSWORD: ${{ env.DB_PASSWORD }}
+        run: |
+          psql -h localhost -U pipeline -d analytics -c "
+            SELECT 'fact_transactions' AS table_name, COUNT(*) FROM fact_transactions
+            UNION ALL SELECT 'agg_daily_summary', COUNT(*) FROM agg_daily_summary
+            UNION ALL SELECT 'ml_wallet_features', COUNT(*) FROM ml_wallet_features;"
+      - name: Prove the quality gate blocks bad data
+        run: |
+          if docker run --rm --network host -e DB_HOST=localhost -e DB_PASSWORD \
+               -e SOURCE_PATH=data/samples -v "$PWD/data:/app/data" -v "$PWD/logs:/app/logs" \
+               dataops-pipeline:${{ github.sha }}; then
+            echo "Expected the dirty batch to fail the quality gate" && exit 1
+          fi
+          echo "Dirty batch correctly rejected"
+      - name: Upload outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-output-${{ github.run_number }}
+          path: |
+            data/processed/run_report.json
+            data/quarantine/
+            logs/

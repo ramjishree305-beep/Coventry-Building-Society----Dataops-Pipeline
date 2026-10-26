@@ -182,6 +182,8 @@ cat data/processed/run_report.json                      # 3. run metrics
 SOURCE_PATH=data/samples docker compose run --rm pipeline   # 4. dirty batch: gate FAILS (22.7% > 5%)
 echo $?                                                 # 4b. exit code 1 – this is what makes CI fail
 cat data/quarantine/*.csv                               # 5. rejected rows with reasons
-docker compose exec postgres psql -U pipeline -d analytics -c "select count(*) from fact_transactions;"   # 6. SQL
+docker compose exec postgres psql -U pipeline -d analytics -c "select count(*) from fact_transactions;" 
+sss
+  # 6. SQL
 # 7. open the GitHub Actions tab and show the green run
 ```

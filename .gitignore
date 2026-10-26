@@ -1,0 +1,11 @@
+.env
+__pycache__/
+.pytest_cache/
+.venv/
+data/processed/
+data/quarantine/
+data/*.db
+logs/
+.terraform/
+.terraform.lock.hcl
+*.tfstate*

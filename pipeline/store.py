@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import shutil
 
 from pipeline import config
 from pipeline.logger import get_logger
@@ -11,6 +12,13 @@ log = get_logger("store")
 def write_parquet(df, name, partition_cols=None):
     path = os.path.join(config.OUTPUT_DIR, name)
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+
+    # Replace the previous output so re-running the pipeline never appends
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    elif os.path.isfile(path):
+        os.remove(path)
+
     df.to_parquet(path, index=False, partition_cols=partition_cols)
     log.info("Wrote parquet", extra={"data": {"path": path, "rows": len(df)}})
     return path

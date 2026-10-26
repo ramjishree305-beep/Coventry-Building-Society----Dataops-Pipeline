@@ -43,7 +43,7 @@ resource "docker_container" "postgres" {
   ]
   ports {
     internal = 5432
-    external = 5432
+    external = 5433
   }
   volumes {
     volume_name    = docker_volume.pgdata.name

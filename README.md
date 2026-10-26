@@ -173,19 +173,6 @@ address (`0x` + 40 hex) · unparseable timestamp · duplicates removed.
 Dataset gate (the run stops and nothing is loaded if any fail): reject rate ≤ 5% ·
 no null/negative amounts · risk score in range · no duplicates · row counts reconcile.
 
-## Troubleshooting
-
-| Problem                                                                  | Fix                                                                                                                                            |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `failed to connect to the docker API ... dockerDesktopLinuxEngine`       | Docker Desktop is not running. Open it and wait for "Engine running", then retry.                                                              |
-| `Bind for 0.0.0.0:5432 failed: port is already allocated`                | Another Postgres is using the port. Change the left side of the port mapping (this repo already uses `5433:5432`), or stop the other Postgres. |
-| `no configuration file provided: not found`                              | You are not in the project folder. `cd` into the folder that contains `docker-compose.yml`.                                                    |
-| `pip install` fails building `pyarrow` (Python 3.13)                     | Use `pyarrow==18.0.0` or newer (already pinned here), or use Python 3.11.                                                                      |
-| `pip` uninstalls packages in your base conda environment                 | The environment is not active. Create and activate `dataops` first (see Option 1) and check `which python`.                                    |
-| `terraform: command not found` after installing                          | Close all VS Code / terminal windows and reopen so the new PATH is picked up.                                                                  |
-| `terraform apply` sits on "Still creating" for the image for 10+ minutes | Make sure `.dockerignore` exists in the project root (it keeps the build context small), then run `terraform apply` again.                     |
-| Dirty batch run shows an error-looking message from Docker               | Expected: exit code 1 is the quality gate working. Docker adds a generic "debug this error" hint.                                              |
-
 ## Live demo script
 
 ```bash
